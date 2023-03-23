@@ -1,0 +1,15 @@
+version: '3.9'
+services:
+  backend:
+    container_name: dynamic-form-backend
+    build: ./backend
+    ports:
+      - "8085:8085"
+    expose:
+      - "8085"
+    environment:
+      - POSTGRES_DB_USERNAME=dennyrezky
+      - POSTGRES_DB_PASSWORD=
+      - POSTGRES_DB_HOST=localhost
+      - POSTGRES_DB_NAME=dynamic_form
+      - POSTGRES_DB_SSL_MODE=disable
