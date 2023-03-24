@@ -147,17 +147,17 @@ func TestPPartnerRepositoryImpl_FindPPartnersByIds(t *testing.T) {
 		wantDescription3 := "New Description Partner 3"
 
 		wantPPartners := []model.PPartner{
-			model.PPartner{
+			{
 				Id:          wantId1,
 				Name:        wantName1,
 				Description: wantDescription1,
 			},
-			model.PPartner{
+			{
 				Id:          wantId2,
 				Name:        wantName2,
 				Description: wantDescription2,
 			},
-			model.PPartner{
+			{
 				Id:          wantId3,
 				Name:        wantName3,
 				Description: wantDescription3,
