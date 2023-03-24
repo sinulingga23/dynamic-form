@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 
 	"github.com/sinulingga23/dynamic-form/backend/api/repository"
@@ -42,15 +43,27 @@ func (p *pPartnerRepositoryImpl) FindOne(ctx context.Context, id string) (model.
 	return pPartner, nil
 }
 
-func (p *pPartnerRepositoryImpl) FIndPartnersByIds(ctx context.Context, ids []string) ([]model.PPartner, error) {
+func (p *pPartnerRepositoryImpl) FIndPPartnersByIds(ctx context.Context, ids []string) ([]model.PPartner, error) {
+	paramIds := `(`
+	lenIds := len(ids)
+	for i := 0; i < lenIds; i++ {
+		if i != lenIds-1 {
+			paramIds += fmt.Sprintf(`'%s',`, ids[i])
+		} else {
+			paramIds += fmt.Sprintf(`'%s'`, ids[i])
+		}
+	}
+	paramIds += `)`
+
 	query := `
 	select
 		id, name, description, created_at, updated_at
 	from
 		partner.p_partner
-	where id in ($1)
-	`
-	rows, errQuery := p.db.Query(query, ids)
+	where id in`
+	query += fmt.Sprintf(` %s`, paramIds)
+
+	rows, errQuery := p.db.Query(query)
 	if errQuery != nil {
 		return []model.PPartner{}, errQuery
 	}
@@ -78,13 +91,13 @@ func (p *pPartnerRepositoryImpl) FIndPartnersByIds(ctx context.Context, ids []st
 	}
 
 	if err := rows.Err(); err != nil {
-		return []model.PPartner{}, err
+		return []model.PPartner{}, model.PPartnerError{Code: model.PPartnerErrorNameIsEmpty}
 	}
 
 	return pPartners, nil
 
 }
-func (p *pPartnerRepositoryImpl) Create(ctx context.Context, createPartner model.PPartner) error {
+func (p *pPartnerRepositoryImpl) Create(ctx context.Context, createPartner model.CreatePPartner) error {
 	query := `
 	insert into partner.p_partner
 		(id, name, description, created_at)
