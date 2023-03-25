@@ -10,7 +10,7 @@ create table partner.p_partner (
 
 create table partner.p_form (
     id uuid not null primary key,
-    partner_id uuid not null,
+    p_partner_id uuid not null,
     name varchar(150) not null,
     created_at timestamp not null,
     updated_at timestamp null,

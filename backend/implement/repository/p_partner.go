@@ -40,6 +40,10 @@ func (p *pPartnerRepositoryImpl) FindOne(ctx context.Context, id string) (model.
 		return model.PPartner{}, errScan
 	}
 
+	if err := row.Err(); err != nil {
+		return model.PPartner{}, err
+	}
+
 	return pPartner, nil
 }
 
