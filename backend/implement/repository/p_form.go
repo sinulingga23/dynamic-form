@@ -16,7 +16,7 @@ func NewPFormRepositoryImpl(db *sql.DB) repository.IPFormRepository {
 	return &pFormRepositoryImpl{db: db}
 }
 
-func (p *pFormRepositoryImpl) FindPFormsByPartnerId(ctx context.Context, partnerId string) (*[]model.PFormPartner, error) {
+func (p *pFormRepositoryImpl) FindPFormsByPartnerId(ctx context.Context, partnerId string) ([]*model.PFormPartner, error) {
 	query := `
 	select
 		pf.id, pf.name, pf.partner_id, pp.name, pp.created_at, pp.updated_at
@@ -32,11 +32,11 @@ func (p *pFormRepositoryImpl) FindPFormsByPartnerId(ctx context.Context, partner
 
 	rows, errQuery := p.db.Query(query, partnerId)
 	if errQuery != nil {
-		return &[]model.PFormPartner{}, errQuery
+		return []*model.PFormPartner{}, errQuery
 	}
 	defer rows.Close()
 
-	pFormsPartner := make([]model.PFormPartner, 0)
+	pFormsPartner := make([]*model.PFormPartner, 0)
 	for rows.Next() {
 		pFormPartner := model.PFormPartner{}
 
@@ -49,15 +49,15 @@ func (p *pFormRepositoryImpl) FindPFormsByPartnerId(ctx context.Context, partner
 			&pFormPartner.UpdatedAt,
 		)
 		if errScan != nil {
-			return &[]model.PFormPartner{}, errScan
+			return []*model.PFormPartner{}, errScan
 		}
 
-		pFormsPartner = append(pFormsPartner, pFormPartner)
+		pFormsPartner = append(pFormsPartner, &pFormPartner)
 	}
 
 	if errr := rows.Err(); errr != nil {
-		return &[]model.PFormPartner{}, errr
+		return []*model.PFormPartner{}, errr
 	}
 
-	return &pFormsPartner, nil
+	return pFormsPartner, nil
 }
