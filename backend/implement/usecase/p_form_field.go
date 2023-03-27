@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,22 +27,36 @@ func NewPFormFieldUsecase(
 	return &pFormFieldUsecase{db: db, pFormFieldRepository: pFormFieldRepository}
 }
 
-func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest payload.PFormFieldRequest) error {
+func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest payload.PFormFieldRequest) payload.Response {
+
+	response := payload.Response{
+		StatusCode: http.StatusOK,
+		Message:    "Success add new form.",
+	}
+
 	if pFormFieldRequest.PFormName == "" {
-		return errors.New("Key formName cant be empty.")
+		response.StatusCode = http.StatusBadRequest
+		response.Message = "Key formName cant be empty."
+		return response
 	}
 
 	if pFormFieldRequest.PPartnerId == "" {
-		return errors.New("Key pPartnerId cant be empty.")
+		response.StatusCode = http.StatusBadRequest
+		response.Message = "Key pPartnerId cant be empty."
+		return response
 	}
 
 	_, errParse := uuid.Parse(pFormFieldRequest.PPartnerId)
 	if errParse != nil {
-		return errors.New("Key pPartnerId is not valid id.")
+		response.StatusCode = http.StatusNotFound
+		response.Message = "Partner not found."
+		return response
 	}
 
 	if len(pFormFieldRequest.FormFields) == 0 {
-		return errors.New("Key formFields cant be empty.")
+		response.StatusCode = http.StatusBadRequest
+		response.Message = "Key formFields cant be empty."
+		return response
 	}
 
 	lenFormFields := len(pFormFieldRequest.FormFields)
@@ -49,20 +64,28 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 		formField := pFormFieldRequest.FormFields[i]
 
 		if formField.PFieldTypeId == "" {
-			return errors.New("Key pFieldTypeId cant be empty.")
+			response.StatusCode = http.StatusBadRequest
+			response.Message = "Key pFieldTypeId cant be empty."
+			return response
 		}
 
 		_, errParse := uuid.Parse(formField.PFieldTypeId)
 		if errParse != nil {
-			return errors.New("key pFieldTypeId is not valid id.")
+			response.StatusCode = http.StatusBadRequest
+			response.Message = "FieldType not found."
+			return response
 		}
 
 		if formField.PFormFieldName == "" {
-			return errors.New("Key pFieldName cant be empty.")
+			response.StatusCode = http.StatusBadRequest
+			response.Message = "Key pFieldName cant be empty."
+			return response
 		}
 
 		if formField.PFormFieldElement == "" {
-			return errors.New("Key pFormFieldElement cant be empty.")
+			response.StatusCode = http.StatusBadRequest
+			response.Message = "Key pFormFieldElement cant be empty."
+			return response
 		}
 	}
 
@@ -71,10 +94,13 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 	if errBegin != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
 			log.Printf("errRollback: %v", errRollback)
-			return errRollback
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
-		log.Printf("errBegin: %v", errBegin)
-		return errBegin
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error when start database transaction."
+		return response
 	}
 
 	queryCheckPartner := `
@@ -89,18 +115,42 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 	if errScanQueryPartner := rowQueryPartner.Scan(&countPartner); errScanQueryPartner != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
 			log.Printf("errRollback: %v", errRollback)
-			return errRollback
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
+
+		if errors.Is(errScanQueryPartner, sql.ErrNoRows) {
+			log.Printf("Error partner not found.")
+			response.StatusCode = http.StatusNotFound
+			response.Message = "Partner not found."
+			return response
+		}
+
 		log.Printf("errScanQueryPartner: %v", errScanQueryPartner)
-		return errScanQueryPartner
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error query data."
+		return response
 	}
 
 	if countPartner != 1 {
+		log.Printf("Error countPartner: %v", countPartner)
 		if errRollback := tx.Rollback(); errRollback != nil {
 			log.Printf("errRollbacl: %v", errRollback)
-			return errRollback
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
-		return errors.New("partner not found.")
+
+		if countPartner == 0 {
+			response.StatusCode = http.StatusNotFound
+			response.Message = "Partner not found."
+			return response
+		}
+
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error query data."
+		return response
 	}
 
 	queryInsertPForm := `
@@ -114,26 +164,41 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 		pFormId, pFormFieldRequest.PPartnerId, pFormFieldRequest.PFormName, time.Now())
 	if errExecQueryInsertForm != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
-			return errRollback
+			log.Printf("errRollbacl: %v", errRollback)
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
-		log.Println("errExecQueryInsertForm:", errExecQueryInsertForm)
-		return errExecQueryInsertForm
+		log.Printf("errExecQueryInsertForm: %v", errExecQueryInsertForm)
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error query data."
+		return response
 	}
 
 	rowsAffectedQueryInsertForm, errRowsAffectedQueryInsertForm := resultQueryInsertPForm.RowsAffected()
 	if errRowsAffectedQueryInsertForm != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
 			log.Printf("errRollback: %v", errRollback)
-			return errRollback
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
-		return errRowsAffectedQueryInsertForm
+		log.Printf("errRowsAffectedQueryInsertForm: %v", errRowsAffectedQueryInsertForm)
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error query data."
+		return response
 	}
 	if rowsAffectedQueryInsertForm != int64(1) {
 		if errRollback := tx.Rollback(); errRollback != nil {
 			log.Printf("errRollback: %v", errRollback)
-			return errRollback
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
-		return errors.New("failed insert pForm")
+		log.Printf("rowsAffectedQueryInsertForm: %v, should 1", rowsAffectedQueryInsertForm)
+		response.StatusCode = http.StatusBadRequest
+		response.Message = "Failed to insert data."
+		return response
 	}
 
 	paramFieldTypeIds := `(`
@@ -160,13 +225,22 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 	countFieldTypeByIds := 0
 	if errScanQueryCheckFieldTypeByIds := rowQueryCheckFieldTypeByIds.Scan(&countFieldTypeByIds); errScanQueryCheckFieldTypeByIds != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
-			return errRollback
+			log.Printf("errRollback: %v", errRollback)
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
-		return errScanQueryCheckFieldTypeByIds
+		log.Printf("errScanQueryCheckFieldTypeByIds: %v", errScanQueryCheckFieldTypeByIds)
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error query data."
+		return response
 	}
 
 	if errQueryCheckFieldTypeByIds := rowQueryCheckFieldTypeByIds.Err(); errQueryCheckFieldTypeByIds != nil {
-		return errQueryCheckFieldTypeByIds
+		log.Printf("errQueryCheckFieldTypeByIds: %v", errQueryCheckFieldTypeByIds)
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error query data."
+		return response
 	}
 
 	paramPFormFields := ``
@@ -199,39 +273,61 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 	resultQueryInserFormFields, errQueryInserFormFields := tx.Exec(queryInsertFormFields)
 	if errQueryInserFormFields != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
-			return errRollback
+			log.Printf("errRollback: %v", errRollback)
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
 		log.Println("errQueryInserFormFields:", errQueryInserFormFields)
-		return errQueryInserFormFields
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error query data."
+		return response
 	}
 
 	rowsAffectedQueryInsertFormFields, errRowsAffectedQueryInserFormFields := resultQueryInserFormFields.RowsAffected()
 	if errRowsAffectedQueryInserFormFields != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
-			return errRollback
+			log.Printf("errRollback: %v", errRollback)
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
-		log.Println("errRowsAffectedQueryInserFormFields:", errRowsAffectedQueryInserFormFields)
-		return errRowsAffectedQueryInserFormFields
+		log.Printf("errRowsAffectedQueryInserFormFields: %v", errRowsAffectedQueryInserFormFields)
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error query data."
+		return response
 	}
 
 	if lenFormFields != int(rowsAffectedQueryInsertFormFields) {
 		if errRollback := tx.Rollback(); errRollback != nil {
-			return errRollback
+			log.Printf("errRollback: %v", errRollback)
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
-		return errors.New("failed insert pFormField")
+		log.Printf("Failed to insert data. lenFormFields: %v, rowsAffectedQueryInsertFormFields: %v", lenFormFields, rowsAffectedQueryInsertFormFields)
+		response.StatusCode = http.StatusBadRequest
+		response.Message = "Failed to insert data."
+		return response
 	}
 
 	if errCommit := tx.Commit(); errCommit != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
-			return errRollback
+			log.Printf("errRollback: %v", errRollback)
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Error when rollback database transaction."
+			return response
 		}
-		return errCommit
+		log.Printf("errCommit: %v", errCommit)
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error commit database transaction."
+		return response
 	}
 	// END: Transaction
 
-	return nil
+	return response
 }
 
-func (p *pFormFieldUsecase) GetFormFieldById(ctx context.Context, id string) (payload.PFormFieldResponse, error) {
-	return payload.PFormFieldResponse{}, nil
+func (p *pFormFieldUsecase) GetFormFieldById(ctx context.Context, id string) payload.Response {
+	return payload.Response{}
 }

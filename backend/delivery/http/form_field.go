@@ -1,9 +1,7 @@
 package http
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -46,15 +44,15 @@ func (f *formFieldHttp) HandleAddFormField(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if errAddFormField := f.pFormFieldUsecase.AddFormField(r.Context(), requestData.Data); errAddFormField != nil {
-		if errors.Is(errAddFormField, sql.ErrNoRows) {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
+	response := f.pFormFieldUsecase.AddFormField(r.Context(), requestData.Data)
+	bytesReponse, errMarshal := json.Marshal(response)
+	if errMarshal != nil {
+		log.Printf("errMarshal:%v", errMarshal)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(response.StatusCode)
+	w.Write(bytesReponse)
 	return
 }

@@ -7,6 +7,6 @@ import (
 )
 
 type IPFormFieldUsecase interface {
-	AddFormField(ctx context.Context, pFormFieldRequest payload.PFormFieldRequest) error
-	GetFormFieldById(ctx context.Context, id string) (payload.PFormFieldResponse, error)
+	AddFormField(ctx context.Context, pFormFieldRequest payload.PFormFieldRequest) payload.Response
+	GetFormFieldById(ctx context.Context, id string) payload.Response
 }

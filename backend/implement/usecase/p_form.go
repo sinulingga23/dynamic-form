@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/sinulingga23/dynamic-form/backend/api/repository"
@@ -20,10 +19,15 @@ func NewPFormUsecasseImpl(
 	return &pFormUsecaseImpl{pFormRepository: pFormRepository}
 }
 
-func (p *pFormUsecaseImpl) GetFormsByPartnerId(ctx context.Context, partnerId string) ([]*payload.FormPartnerResponse, error) {
+func (p *pFormUsecaseImpl) GetFormsByPartnerId(ctx context.Context, partnerId string) payload.Response {
+	response := payload.Response{}
+
+	if partnerId == "" {
+		return response
+	}
 	pFormsPartner, errFindFormsByPartnerId := p.pFormRepository.FindPFormsByPartnerId(ctx, partnerId)
 	if errFindFormsByPartnerId != nil {
-		return []*payload.FormPartnerResponse{}, errFindFormsByPartnerId
+		return response
 	}
 
 	pFormsPartnerResponse := make([]*payload.FormPartnerResponse, 0)
@@ -48,8 +52,8 @@ func (p *pFormUsecaseImpl) GetFormsByPartnerId(ctx context.Context, partnerId st
 	}
 
 	if len(pFormsPartnerResponse) == 0 {
-		return []*payload.FormPartnerResponse{}, errors.New("data not found.")
+		return response
 	}
 
-	return pFormsPartnerResponse, nil
+	return response
 }
