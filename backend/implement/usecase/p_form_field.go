@@ -35,37 +35,35 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 		return errors.New("Key pPartnerId cant be empty.")
 	}
 
+	_, errParse := uuid.Parse(pFormFieldRequest.PPartnerId)
+	if errParse != nil {
+		return errors.New("Key pPartnerId is not valid id.")
+	}
+
 	if len(pFormFieldRequest.FormFields) == 0 {
 		return errors.New("Key formFields cant be empty.")
 	}
 
 	lenFormFields := len(pFormFieldRequest.FormFields)
-	errChan := make(chan error)
 	for i := 0; i < lenFormFields; i++ {
-		go func() {
-			formField := pFormFieldRequest.FormFields[i]
+		formField := pFormFieldRequest.FormFields[i]
 
-			if formField.PFieldTypeId == "" {
-				errChan <- errors.New("Key pFieldTypeId cant be empty.")
-			}
+		if formField.PFieldTypeId == "" {
+			return errors.New("Key pFieldTypeId cant be empty.")
+		}
 
-			_, errParse := uuid.Parse(formField.PFieldTypeId)
-			if errParse != nil {
-				errChan <- errors.New("key pFieldTypeId is not valid id.")
-			}
+		_, errParse := uuid.Parse(formField.PFieldTypeId)
+		if errParse != nil {
+			return errors.New("key pFieldTypeId is not valid id.")
+		}
 
-			if formField.PFormFieldName == "" {
-				errChan <- errors.New("Key pFieldName cant be empty.")
-			}
+		if formField.PFormFieldName == "" {
+			return errors.New("Key pFieldName cant be empty.")
+		}
 
-			if formField.PFormFieldElement == "" {
-				errChan <- errors.New("Key pFormFieldElement cant be empty.")
-			}
-		}()
-	}
-
-	if errFromChan := <-errChan; errFromChan != nil {
-		return errFromChan
+		if formField.PFormFieldElement == "" {
+			return errors.New("Key pFormFieldElement cant be empty.")
+		}
 	}
 
 	// START: Transaction
@@ -85,15 +83,7 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 	from partner.p_partner 
 		where id = $1
 	`
-	rowQueryPartner, errQueryPartner := tx.Query(queryCheckPartner, pFormFieldRequest.PPartnerId)
-	if errQueryPartner != nil {
-		if errRollback := tx.Rollback(); errRollback != nil {
-			log.Printf("errRollback: %v", errRollback)
-			return errRollback
-		}
-		log.Printf("errQueryPartner: %v", errQueryPartner)
-		return errQueryPartner
-	}
+	rowQueryPartner := tx.QueryRow(queryCheckPartner, pFormFieldRequest.PPartnerId)
 
 	countPartner := 0
 	if errScanQueryPartner := rowQueryPartner.Scan(&countPartner); errScanQueryPartner != nil {
@@ -110,7 +100,6 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 			log.Printf("errRollbacl: %v", errRollback)
 			return errRollback
 		}
-		log.Printf("partner not found.")
 		return errors.New("partner not found.")
 	}
 
@@ -127,6 +116,7 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 		if errRollback := tx.Rollback(); errRollback != nil {
 			return errRollback
 		}
+		log.Println("errExecQueryInsertForm:", errExecQueryInsertForm)
 		return errExecQueryInsertForm
 	}
 
@@ -162,9 +152,10 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 	from
 		partner.p_field_type
 	where
-		id in $1
+		id in
 	`
-	rowQueryCheckFieldTypeByIds := tx.QueryRow(queryCheckFieldTypeByIds, paramFieldTypeIds)
+	queryCheckFieldTypeByIds += paramFieldTypeIds
+	rowQueryCheckFieldTypeByIds := tx.QueryRow(queryCheckFieldTypeByIds)
 
 	countFieldTypeByIds := 0
 	if errScanQueryCheckFieldTypeByIds := rowQueryCheckFieldTypeByIds.Scan(&countFieldTypeByIds); errScanQueryCheckFieldTypeByIds != nil {
@@ -178,43 +169,39 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 		return errQueryCheckFieldTypeByIds
 	}
 
-	if lenFormFields != countFieldTypeByIds {
-		return errors.New("fieldType not found.")
-	}
-
 	paramPFormFields := ``
 	for i := 0; i < lenFormFields; i++ {
 		formField := pFormFieldRequest.FormFields[i]
 		if i != lenFormFields-1 {
-			paramPFormFields += fmt.Sprintf(`(%s, %s, %s, %s, %s, %v),`,
+			paramPFormFields += fmt.Sprintf(`('%s', '%s', '%s', '%s', '%s', '%v'),`,
 				uuid.NewString(),
 				pFormId,
 				formField.PFieldTypeId,
 				formField.PFormFieldName,
 				formField.PFormFieldElement,
-				time.Now())
+				time.Now().Format(time.RFC3339))
 		} else {
-			paramPFormFields += fmt.Sprintf(`(%s, %s, %s, %s, %s, %v)`,
+			paramPFormFields += fmt.Sprintf(`('%s', '%s', '%s', '%s', '%s', '%v')`,
 				uuid.NewString(),
 				pFormId,
 				formField.PFieldTypeId,
 				formField.PFormFieldName,
 				formField.PFormFieldElement,
-				time.Now())
+				time.Now().Format(time.RFC3339))
 		}
 	}
 
 	queryInsertFormFields := `
 	insert into partner.p_form_field
 		(id, p_form_id, p_field_type_id, name, element, created_at)
-	values
-		$1
-	`
-	resultQueryInserFormFields, errQueryInserFormFields := tx.Exec(queryInsertFormFields, paramPFormFields)
+	values `
+	queryInsertFormFields += paramPFormFields
+	resultQueryInserFormFields, errQueryInserFormFields := tx.Exec(queryInsertFormFields)
 	if errQueryInserFormFields != nil {
 		if errRollback := tx.Rollback(); errRollback != nil {
 			return errRollback
 		}
+		log.Println("errQueryInserFormFields:", errQueryInserFormFields)
 		return errQueryInserFormFields
 	}
 
@@ -223,6 +210,7 @@ func (p *pFormFieldUsecase) AddFormField(ctx context.Context, pFormFieldRequest 
 		if errRollback := tx.Rollback(); errRollback != nil {
 			return errRollback
 		}
+		log.Println("errRowsAffectedQueryInserFormFields:", errRowsAffectedQueryInserFormFields)
 		return errRowsAffectedQueryInserFormFields
 	}
 

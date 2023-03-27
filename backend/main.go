@@ -8,6 +8,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sinulingga23/dynamic-form/backend/db"
+	"github.com/sinulingga23/dynamic-form/backend/implement/repository"
+	"github.com/sinulingga23/dynamic-form/backend/implement/usecase"
+
+	deliveryHttp "github.com/sinulingga23/dynamic-form/backend/delivery/http"
 )
 
 var (
@@ -30,6 +35,20 @@ func main() {
 		w.Write([]byte("it's work!"))
 		w.WriteHeader(http.StatusOK)
 	})
+
+	// repository
+	db, errConnect := db.ConnectDB()
+	if errConnect != nil {
+		log.Fatalf("errConnect: %v", errConnect)
+	}
+	pFormFieldRepository := repository.NewPFormFieldRepositoryImpl(db)
+
+	// usecase
+	pFormFieldUsecase := usecase.NewPFormFieldUsecase(db, pFormFieldRepository)
+
+	// delivery - http
+	formFieldHttp := deliveryHttp.NewFormFieldHttp(pFormFieldUsecase)
+	formFieldHttp.ServeHandler(r)
 
 	log.Printf("Running backend-service on: %s", port)
 	if errListen := http.ListenAndServe(fmt.Sprintf(":%s", port), r); errListen != nil {
