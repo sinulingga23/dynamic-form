@@ -19,6 +19,10 @@ func NewFormHttp(
 	return formHtp{pFormUsecase: pFormUsecase}
 }
 
+func (f *formHtp) ServeHandler(r *chi.Mux) {
+	r.Get("/api/v1/forms/{partnerId}/partner", f.HandleGetFormsByPartnerId)
+}
+
 func (f *formHtp) HandleGetFormsByPartnerId(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 

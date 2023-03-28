@@ -120,3 +120,33 @@ func (p *pPartnerRepositoryImpl) Create(ctx context.Context, createPartner model
 
 	return nil
 }
+
+func (p *pPartnerRepositoryImpl) IsExistsById(ctx context.Context, id string) (bool, error) {
+
+	query := `
+	select
+		count(id)
+	from
+		partner.p_partner
+	where
+		id = $1
+	`
+
+	row := p.db.QueryRow(query, id)
+
+	count := 0
+	errScan := row.Scan(&count)
+	if errScan != nil {
+		return false, errScan
+	}
+
+	if err := row.Err(); err != nil {
+		return false, err
+	}
+
+	if count != 1 {
+		return false, sql.ErrNoRows
+	}
+
+	return true, nil
+}

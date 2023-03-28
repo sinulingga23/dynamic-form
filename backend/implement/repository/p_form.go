@@ -19,15 +19,15 @@ func NewPFormRepositoryImpl(db *sql.DB) repository.IPFormRepository {
 func (p *pFormRepositoryImpl) FindPFormsByPartnerId(ctx context.Context, partnerId string) ([]*model.PFormPartner, error) {
 	query := `
 	select
-		pf.id, pf.name, pf.partner_id, pp.name, pp.created_at, pp.updated_at
+		pf.id, pf.name, pf.p_partner_id, pp.name, pp.created_at, pp.updated_at
 	from
 		partner.p_form as pf
 	join
 		partner.p_partner as pp
 	on
-		pp.partner_id = pp.id
+		pf.p_partner_id = pp.id
 	where
-		pp.id = $1
+		pf.p_partner_id = $1
 	`
 
 	rows, errQuery := p.db.Query(query, partnerId)

@@ -42,13 +42,19 @@ func main() {
 		log.Fatalf("errConnect: %v", errConnect)
 	}
 	pFormFieldRepository := repository.NewPFormFieldRepositoryImpl(db)
+	pFormRepository := repository.NewPFormRepositoryImpl(db)
+	pPartnerRepository := repository.NewPPartnerRepositoryImpl(db)
 
 	// usecase
 	pFormFieldUsecase := usecase.NewPFormFieldUsecase(db, pFormFieldRepository)
+	pFormUsecase := usecase.NewPFormUsecasseImpl(db, pFormRepository, pPartnerRepository)
 
 	// delivery - http
 	formFieldHttp := deliveryHttp.NewFormFieldHttp(pFormFieldUsecase)
 	formFieldHttp.ServeHandler(r)
+
+	formHttp := deliveryHttp.NewFormHttp(pFormUsecase)
+	formHttp.ServeHandler(r)
 
 	log.Printf("Running backend-service on: %s", port)
 	if errListen := http.ListenAndServe(fmt.Sprintf(":%s", port), r); errListen != nil {
