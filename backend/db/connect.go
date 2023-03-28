@@ -21,5 +21,9 @@ func ConnectDB() (*sql.DB, error) {
 		return nil, errOpen
 	}
 
+	if errPing := db.Ping(); errPing != nil {
+		return nil, errPing
+	}
+
 	return db, nil
 }

@@ -2,32 +2,67 @@ package http
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sinulingga23/dynamic-form/backend/api/usecase"
+	"github.com/sinulingga23/dynamic-form/backend/payload"
 )
 
-type formHtp struct {
+type formHttp struct {
 	pFormUsecase usecase.IPFormUsecase
 }
 
 func NewFormHttp(
 	pFormUsecase usecase.IPFormUsecase,
-) formHtp {
-	return formHtp{pFormUsecase: pFormUsecase}
+) formHttp {
+	return formHttp{pFormUsecase: pFormUsecase}
 }
 
-func (f *formHtp) ServeHandler(r *chi.Mux) {
-	r.Get("/api/v1/forms/{partnerId}/partner", f.HandleGetFormsByPartnerId)
+func (f *formHttp) ServeHandler(r *chi.Mux) {
+	r.Post("/api/v1/forms", f.HandleAddPForm)
+	r.Get("/api/v1/forms/{partnerId}/partner", f.HandleGetPFormsByPPartnerId)
 }
 
-func (f *formHtp) HandleGetFormsByPartnerId(w http.ResponseWriter, r *http.Request) {
+func (f *formHttp) HandleAddPForm(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	bytesBody, errReadAll := io.ReadAll(r.Body)
+	if errReadAll != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	requestData := struct {
+		Data payload.PFormRequest `json:"data"`
+	}{}
+
+	if errUnmarshal := json.Unmarshal(bytesBody, &requestData); errUnmarshal != nil {
+		log.Println("errUnmarshal:", errUnmarshal)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	response := f.pFormUsecase.AddPForm(r.Context(), requestData.Data)
+	bytesReponse, errMarshal := json.Marshal(response)
+	if errMarshal != nil {
+		log.Printf("errMarshal:%v", errMarshal)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(response.StatusCode)
+	w.Write(bytesReponse)
+	return
+}
+
+func (f *formHttp) HandleGetPFormsByPPartnerId(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	partnerId := chi.URLParam(r, "partnerId")
-	response := f.pFormUsecase.GetFormsByPartnerId(r.Context(), partnerId)
+	response := f.pFormUsecase.GetPFormsByPPartnerId(r.Context(), partnerId)
 
 	bytesResponse, errMarhsal := json.Marshal(response)
 	if errMarhsal != nil {

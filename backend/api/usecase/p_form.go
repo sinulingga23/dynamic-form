@@ -7,5 +7,6 @@ import (
 )
 
 type IPFormUsecase interface {
-	GetFormsByPartnerId(ctx context.Context, partnerId string) payload.Response
+	AddPForm(ctx context.Context, pFormRequest payload.PFormRequest) payload.Response
+	GetPFormsByPPartnerId(ctx context.Context, partnerId string) payload.Response
 }
