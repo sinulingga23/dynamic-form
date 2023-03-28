@@ -11,7 +11,7 @@ services:
       - PORT=8085
       - POSTGRES_DB_USERNAME=dennyrezky
       - POSTGRES_DB_PASSWORD=
-      - POSTGRES_DB_HOST=localhost
+      - POSTGRES_DB_HOST=host.docker.internal
       - POSTGRES_DB_NAME=dynamic_form
       - POSTGRES_DB_SSL_MODE=disable
       
