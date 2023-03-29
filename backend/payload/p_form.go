@@ -34,4 +34,21 @@ type (
 		CreatedAt  time.Time    `json:"createdAt"`
 		UpdatedAt  time.Time    `json:"updatedAt"`
 	}
+
+	PFormFieldChild struct {
+		PFieldTypeId      string `json:"pFieldTypeId"`
+		PFIeldTypeName    string `json:"pFieldTypeName"`
+		PFormFieldId      string `json:"pFormFieldId"`
+		PFormFieldName    string `json:"pFormFieldName"`
+		PFormFieldElement string `json:"pFormFieldElement"`
+	}
+	PFormDetailResponse struct {
+		Id               string            `json:"id"`
+		Name             string            `json:"name"`
+		PPartnerId       string            `json:"pPartnerId"`
+		PPartnerName     string            `json:"pPartnerName"`
+		PFormFieldChilds []PFormFieldChild `json:"pFormFields"`
+		CreatedAt        time.Time         `json:"createdAt"`
+		UpdatedAt        time.Time         `json:"updatedAt"`
+	}
 )

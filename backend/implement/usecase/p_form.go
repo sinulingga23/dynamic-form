@@ -419,3 +419,75 @@ func (p *pFormUsecaseImpl) GetPFormsByPPartnerId(ctx context.Context, partnerId 
 	response.Data = pFormsPartnerResponse
 	return response
 }
+
+func (p *pFormUsecaseImpl) GetPFormById(ctx context.Context, id string) payload.Response {
+	response := payload.Response{
+		StatusCode: http.StatusOK,
+		Message:    "Success to get the form.",
+	}
+
+	if id == "" {
+		log.Print("Param id empty")
+		response.StatusCode = http.StatusBadRequest
+		response.Message = "Param id cant be empty."
+		return response
+	}
+
+	_, errParse := uuid.Parse(id)
+	if errParse != nil {
+		log.Printf("errParse: %v, id: %v", errParse, id)
+		response.StatusCode = http.StatusNotFound
+		response.Message = "Form not found."
+		return response
+	}
+
+	pFormDetail, errFindOne := p.pFormRepository.FindOne(ctx, id)
+	if errFindOne != nil {
+		log.Printf("errFindOne: %v", errFindOne)
+		if errors.Is(errFindOne, sql.ErrNoRows) {
+			response.StatusCode = http.StatusNotFound
+			response.Message = "Form not found."
+			return response
+		}
+		response.StatusCode = http.StatusInternalServerError
+		response.Message = "Error query data."
+		return response
+	}
+
+	if pFormDetail.Id == "" {
+		response.StatusCode = http.StatusNotFound
+		response.Message = "Form not found."
+		return response
+	}
+
+	pFormDetailResponse := payload.PFormDetailResponse{}
+	pFormDetailResponse.Id = pFormDetail.Id
+	pFormDetailResponse.Name = pFormDetail.Name
+	pFormDetailResponse.PPartnerId = pFormDetail.PPartnerId
+	pFormDetailResponse.PPartnerName = pFormDetail.PPartnerName
+
+	lenPFormChilds := len(pFormDetail.PFormFieldChilds)
+	for i := 0; i < lenPFormChilds; i++ {
+		pFormDetail := pFormDetail.PFormFieldChilds[i]
+
+		pFormDetailResponse.PFormFieldChilds = append(pFormDetailResponse.PFormFieldChilds, payload.PFormFieldChild{
+			PFieldTypeId:      pFormDetail.PFieldTypeId,
+			PFIeldTypeName:    pFormDetail.PFIeldTypeName,
+			PFormFieldId:      pFormDetail.PFormFieldId,
+			PFormFieldName:    pFormDetail.PFormFieldName,
+			PFormFieldElement: pFormDetail.PFormFieldElement,
+		})
+	}
+
+	pFormDetailResponse.CreatedAt = pFormDetail.CreatedAt
+	if pFormDetail.UpdatedAt.Valid {
+		pFormDetailResponse.UpdatedAt = pFormDetail.UpdatedAt.Time
+	} else {
+		pFormDetailResponse.UpdatedAt = time.Time{}
+	}
+
+	if response.StatusCode == http.StatusOK {
+		response.Data = pFormDetailResponse
+	}
+	return response
+}

@@ -24,6 +24,7 @@ func NewFormHttp(
 func (f *formHttp) ServeHandler(r *chi.Mux) {
 	r.Post("/api/v1/forms", f.HandleAddPForm)
 	r.Get("/api/v1/forms/{partnerId}/partner", f.HandleGetPFormsByPPartnerId)
+	r.Get("/api/v1/forms/{id}", f.HandleGetPFormById)
 }
 
 func (f *formHttp) HandleAddPForm(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +50,7 @@ func (f *formHttp) HandleAddPForm(w http.ResponseWriter, r *http.Request) {
 	bytesReponse, errMarshal := json.Marshal(response)
 	if errMarshal != nil {
 		log.Printf("errMarshal:%v", errMarshal)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -67,6 +68,24 @@ func (f *formHttp) HandleGetPFormsByPPartnerId(w http.ResponseWriter, r *http.Re
 	bytesResponse, errMarhsal := json.Marshal(response)
 	if errMarhsal != nil {
 		log.Printf("errMarshal: %v", errMarhsal)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(response.StatusCode)
+	w.Write(bytesResponse)
+	return
+}
+
+func (f *formHttp) HandleGetPFormById(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	id := chi.URLParam(r, "id")
+	response := f.pFormUsecase.GetPFormById(r.Context(), id)
+
+	bytesResponse, errMarshal := json.Marshal(response)
+	if errMarshal != nil {
+		log.Printf("errMashal: %v", errMarshal)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

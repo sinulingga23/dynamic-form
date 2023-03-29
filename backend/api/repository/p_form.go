@@ -8,4 +8,5 @@ import (
 
 type IPFormRepository interface {
 	FindPFormsByPartnerId(ctx context.Context, partnerId string) ([]*model.PFormPartner, error)
+	FindOne(ctx context.Context, id string) (*model.PFormDetail, error)
 }
